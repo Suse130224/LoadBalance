@@ -15,7 +15,8 @@ public:
     Host(std::string hostname, int port, int maxConn);
     void setOnline(bool online);
     bool isOnline();
-    void setBusyRatio(int busyRatio);
+    void increaseBusyRatio();
+    void decreaseBusyRatio();
     int getBusyRatio();
     std::string getHostName();
     int getPort();

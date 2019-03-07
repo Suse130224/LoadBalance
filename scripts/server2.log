@@ -1,0 +1,9 @@
+nohup: ignoring input
+Traceback (most recent call last):
+  File "./server.py", line 27, in <module>
+    echo_server(('', options.port))
+  File "./server.py", line 19, in echo_server
+    client_sock, client_addr = sock.accept()
+  File "/usr/lib/python2.7/socket.py", line 206, in accept
+    sock, addr = self._sock.accept()
+KeyboardInterrupt

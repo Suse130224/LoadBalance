@@ -3,7 +3,7 @@
 #include "host.h"
 
 
-Host::Host(std::string hostname, int port, int maxConn) : m_hostname(hostname), m_port(port), m_maxConn(maxConn), m_online(true), m_busyRatio(0){
+Host::Host(std::string hostname, int port, int maxConn) : m_hostname(hostname), m_port(port), m_maxConn(maxConn), m_online(false), m_busyRatio(0){
 }
 
 void Host::setOnline(bool online){
@@ -14,8 +14,12 @@ bool Host::isOnline(){
     return m_online;
 }
 
-void Host::setBusyRatio(int busyRatio){
-    m_busyRatio = busyRatio;
+void Host::increaseBusyRatio(){
+    m_busyRatio++;
+}
+
+void Host::decreaseBusyRatio(){
+    m_busyRatio--;
 }
 
 int Host::getBusyRatio(){

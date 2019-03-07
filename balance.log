@@ -1,0 +1,12 @@
+nohup: ignoring input
+2019-03-07 17:36:04 healthCheck.cpp:0054 [INFO] Host localhost has resumed service
+2019-03-07 17:36:44 healthCheck.cpp:0054 [INFO] Host 127.0.0.1 has resumed service
+2019-03-07 17:37:54 healthCheck.cpp:0050 [ERROR] Host localhost not online
+2019-03-07 17:44:07 loadBalance.cpp:0078 [ERROR] Connect to host localhost fail!
+2019-03-07 17:46:05 loadBalance.cpp:0078 [ERROR] Connect to host localhost fail!
+2019-03-07 17:47:38 loadBalance.cpp:0078 [ERROR] Connect to host localhost fail!
+2019-03-07 17:50:15 healthCheck.cpp:0050 [ERROR] Host 127.0.0.1 not online
+2019-03-07 17:50:21 healthCheck.cpp:0054 [INFO] Host 127.0.0.1 has resumed service
+2019-03-07 17:51:01 healthCheck.cpp:0054 [INFO] Host localhost has resumed service
+2019-03-07 18:49:08 healthCheck.cpp:0050 [ERROR] Host localhost not online
+2019-03-07 18:49:10 healthCheck.cpp:0050 [ERROR] Host 127.0.0.1 not online
