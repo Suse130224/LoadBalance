@@ -9,6 +9,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
+#include <iostream>
 
 #include "log.h"
 #include "host.h"

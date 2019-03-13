@@ -2,21 +2,26 @@
 from socket import *
 import ConfigParser
 import time
-import thread
+import threading
+from optparse import OptionParser
 
-def check_server(address, port):
+total = 0
+success = 0
+
+def checkServer(address, port):
     sock = socket(AF_INET, SOCK_STREAM)
+    global total
+    global success
     try:
+        sock.settimeout(3)
         sock.connect((address, port))
         sock.send("Hello")
+        total += 1
         if(sock.recv(8192) == "Hello"):
-            return True
-        else:
-            return False
+            success += 1
     except error, e:
         print("exception occur: {}").format(e)
-        return False
-        
+    sock.close()
 
 if __name__ == '__main__':
     cf = ConfigParser.ConfigParser()
@@ -24,16 +29,21 @@ if __name__ == '__main__':
     hostname = cf.get("host", "hostname")
     port = cf.getint("host", "port")
     print("hostname: {}, port: {}").format(hostname, port)
-    testInterval = cf.getfloat("test", "interval")
-    testTime = cf.getint("test", "time")
+    
+
+    parser=OptionParser()
+    parser.add_option("-c", "--concurrency", dest="concurrency", type="int", default=80)
+    (options,args)=parser.parse_args()
+    concurrency = options.concurrency
+
     startTime = time.time()
-
-    total = 0
-    success = 0
-    while(time.time() - startTime < testTime):
-        time.sleep(testInterval)
-        for i in range(100):
-            thread.start_new_thread(check_server, (hostname, port))
+    threads = []
+    for i in xrange(concurrency):
+        t = threading.Thread(target=checkServer, args=(hostname, port))
+        threads.append(t)
+    for i in xrange(concurrency):
+        threads[i].start()
+    for i in xrange(concurrency):
+        threads[i].join()
         
-
-    print("Total :{}, success: {}").format(total, success)
+    print("Test comleted! Total: {}, success: {}, ratio: {}, total time: {}").format(total, success, float(success)/ total, time.time() - startTime)

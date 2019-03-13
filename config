@@ -1,7 +1,7 @@
-listen 127.0.0.1 8080
+listen 127.0.0.1 8000
 inter 2
 rise 2
 fall 3
-server localhost 8090 100
-server 127.0.0.1 8091 100
+server localhost 8090 10000
+server 127.0.0.1 8091 10000
 

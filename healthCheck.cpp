@@ -46,6 +46,7 @@ void HealthCheck::check(){
                 }
                 numOfFail[hostname] = 0;
             }
+            close(sockFd);
             if(numOfFail[hostname] >= m_fall && server->isOnline()){ //After several failed connections, the server is considered not online                     
                 log(LOG_ERR, __FILE__, __LINE__, "Host %s not online", hostname.c_str());
                 server->setOnline(false);
@@ -54,7 +55,6 @@ void HealthCheck::check(){
                 log(LOG_INFO, __FILE__, __LINE__, "Host %s has resumed service", (char*)hostname.c_str());
                 server->setOnline(true);
             }
-            close(sockFd);
         }
     }
 }

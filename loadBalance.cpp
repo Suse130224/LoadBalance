@@ -11,7 +11,6 @@
 #include <climits>
 #include <vector>
 #include <thread>
-#include <iostream>
 
 #include "loadBalance.h"
 #include "log.h"
@@ -61,6 +60,7 @@ void LoadBalance::balance(){
                 Host* server = getMostFreeHost(); //select most free host for client
                 if(server == nullptr){
                     log(LOG_ERR, __FILE__, __LINE__, "%s", "No free host!");
+                    closeFd(m_epollFd, cltFd);
                     continue;
                 }
          
@@ -77,11 +77,10 @@ void LoadBalance::balance(){
                 }
                 if(connect(srvFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) != 0){
                     log(LOG_ERR, __FILE__, __LINE__, "Connect to host %s fail!", hostName);
-                    close(srvFd);
+                    closeFd(m_epollFd, srvFd);
                     continue;
                 }
                 server->increaseBusyRatio(); 
-                std::cout << "Busy ratio of " << server->getHostName() << " is " << server->getBusyRatio() << std::endl;
                 addReadFd(m_epollFd, cltFd);
                 addReadFd(m_epollFd, srvFd);
                 m_cltToSrv[cltFd] = srvFd;
@@ -91,7 +90,7 @@ void LoadBalance::balance(){
                 int srvFd = m_cltToSrv[sockFd];
                 int bytesRead = recv(sockFd, BUFF, BUFF_SIZE, 0); //receive from client
                 if(bytesRead == -1){
-                    if(errno == EAGAIN && errno == EWOULDBLOCK){
+                    if(errno == EAGAIN || errno == EWOULDBLOCK){
                         continue;
                     }else{
                         log(LOG_ERR, __FILE__, __LINE__, "Receive from client met error: %s", strerror(errno));
@@ -118,7 +117,7 @@ void LoadBalance::balance(){
                         freeConn(cltFd, sockFd);
                         continue;
                     }
-                }                                                                                                                                                                                                           if(bytesRead == 0){
+                }                                                                                                                               if(bytesRead == 0){
                     freeConn(cltFd, sockFd);
                     continue;
                 }
@@ -138,7 +137,6 @@ void LoadBalance::freeConn(int cltFd, int srvFd){
     m_cltToSrv.erase(cltFd);
     m_srvToClt.erase(srvFd);
     m_srvFdToSrv[srvFd]->decreaseBusyRatio();
-    std::cout << "free connection!" << std::endl;
 }
 
 Host* LoadBalance::getMostFreeHost(){
