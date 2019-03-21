@@ -85,9 +85,17 @@ int main(){
     inet_pton(AF_INET, ip, &address.sin_addr);
     address.sin_port = htons(g_localPort);
     int ret = bind(listenFd, (struct sockaddr*)&address, sizeof(address));
-    assert(ret != -1);
+    if(ret == -1){
+        close(listenFd);
+        log(LOG_ERR, __FILE__, __LINE__, "%s", "bind address error!");
+        return -1;
+    }
     ret = listen(listenFd, 5);
-    assert(ret != -1);
+    if(ret == -1){
+        close(listenFd);
+        log(LOG_ERR, __FILE__, __LINE__, "%s", "bind address error!");
+        return -1;
+    }
     
     LoadBalance loadBalance(listenFd, g_logicalSrvs);
     HealthCheck healthCheck(g_logicalSrvs, g_checkInter, g_checkRise, g_checkFall);
