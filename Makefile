@@ -12,4 +12,4 @@ loadBalancer: host.o loadBalance.o healthCheck.o main.cpp log.o util.h
 	g++ -std=c++11 host.o loadBalance.o healthCheck.o log.o util.h main.cpp -o loadBalancer -pthread
 
 clean:
-	\rm *.o
+	\rm *.o loadBalancer
