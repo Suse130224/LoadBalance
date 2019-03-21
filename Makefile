@@ -3,7 +3,7 @@ all: log.o host.o healthCheck.o loadBalance.o loadBalancer
 log.o: log.cpp log.h
 	g++ -c log.cpp -o log.o
 host.o: host.cpp host.h
-	g++ -c host.cpp -o host.o
+	g++ -std=c++11 -c host.cpp -o host.o
 loadBalance.o: loadBalance.cpp loadBalance.h
 	g++ -std=c++11 -c loadBalance.cpp -o loadBalance.o
 healthCheck.o: healthCheck.cpp healthCheck.h
