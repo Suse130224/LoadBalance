@@ -10,7 +10,7 @@
 
 #include "healthCheck.h"
 #include "log.h"
-
+#include "util.h"
 
 HealthCheck::HealthCheck(std::vector<Host*> servers, int inter, int rise, int fall) : m_servers(servers), m_inter(inter), m_rise(rise), m_fall(fall){
 }
@@ -27,31 +27,24 @@ void HealthCheck::check(){
         sleep(m_inter);
         for(auto server : m_servers){
             std::string hostname = server->getHostName();
-            struct sockaddr_in address;
-            bzero(&address, sizeof(address));
-            address.sin_family = AF_INET;
-            inet_pton(AF_INET, (char*)hostname.c_str(), &address.sin_addr);
-            address.sin_port = htons(server->getPort());
-
-            int sockFd = socket(PF_INET, SOCK_STREAM, 0);
-            assert(sockFd > 0);
-            if(connect(sockFd, (struct sockaddr*)&address, sizeof(address)) != 0){
+            int sockFd = connectToServer((char*)hostname.c_str(), server->getPort());
+            if(sockFd < 0){ //如果连接失败则增加失败计数
                 if(numOfFail[hostname] < m_fall){
                     numOfFail[hostname]++;
                 }
                 numOfSuccess[hostname] = 0;
             }else{
-                if(numOfSuccess[hostname] < m_rise){
+                if(numOfSuccess[hostname] < m_rise){ //如果连接成功则增加成功计数
                     numOfSuccess[hostname]++;
                 }
                 numOfFail[hostname] = 0;
             }
             close(sockFd);
-            if(numOfFail[hostname] >= m_fall && server->isOnline()){ //After several failed connections, the server is considered not online                     
+            if(numOfFail[hostname] >= m_fall && server->isOnline()){ //如果失败次数超过阈值，且当前状态为online，则将server的online设置为false                     
                 log(LOG_ERR, __FILE__, __LINE__, "Host %s not online", hostname.c_str());
                 server->setOnline(false);
             }
-            if(numOfSuccess[hostname] >= m_rise && !server->isOnline()){ //After serveral successful connections, the server is considered to be restored
+            if(numOfSuccess[hostname] >= m_rise && !server->isOnline()){ //如果成功次数超过阈值，且当前状态为not online，则将server的online设置为true
                 log(LOG_INFO, __FILE__, __LINE__, "Host %s has resumed service", (char*)hostname.c_str());
                 server->setOnline(true);
             }

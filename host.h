@@ -9,9 +9,9 @@ class Host
 private:
     std::string m_hostname;
     int m_port;
-    int m_maxConn; //Maximum number of connections supported by the server
-    std::atomic<bool> m_online; //Set by the result of health check
-    int m_busyRatio; //Number of connection
+    int m_maxConn; //服务器支持的最大连接数
+    std::atomic<bool> m_online; //根据健康检查结果设置是否在线
+    int m_busyRatio; //服务器当前连接数
 public:
     Host(std::string hostname, int port, int maxConn);
     void setOnline(bool online);

@@ -48,7 +48,6 @@ void LoadBalance::balance(){
         for(int i = 0; i < number; ++i){
             int sockFd = events[i].data.fd;
             if(sockFd == m_listenFd && events[i].events & EPOLLIN){ //get a new client request
-                m_curConn++;
                 struct sockaddr_in clientAddress;
                 socklen_t clientAddrlength = sizeof(clientAddress);
                 int cltFd = accept(m_listenFd, (struct sockaddr*)&clientAddress, &clientAddrlength);
@@ -56,81 +55,89 @@ void LoadBalance::balance(){
                     log(LOG_ERR, __FILE__, __LINE__, "Accept client request fail, errno: %s", strerror(errno));
                     continue;
                 }
+                m_curConn++;
                 if(m_curConn > m_maxConn){ //到达最大连接数则拒绝客户端请求
                     log(LOG_DEBUG, __FILE__, __LINE__, "%s", "Max connection reached! The request from client refused!");
                     close(cltFd);
+                    m_curConn--;
                     continue;
                 }
+
                 Host* server = m_algorithm->selectServer(); 
                 if(server->getBusyRatio() >= server->getMaxConn()){
                     log(LOG_ERR, __FILE__, __LINE__, "server %s has reached the maximum number of connections!", (char*)server->getHostName().c_str());
                     continue;
                 }
-         
-                struct sockaddr_in serverAddress;
-                bzero(&serverAddress, sizeof(serverAddress));
-                serverAddress.sin_family = AF_INET;
-                char* hostName = (char*)server->getHostName().c_str();
-                inet_pton(AF_INET, hostName, &serverAddress.sin_addr);
-                serverAddress.sin_port = htons(server->getPort());
-                int srvFd = socket(PF_INET, SOCK_STREAM, 0);
+                int srvFd = connectToServer((char*)server->getHostName().c_str(), server->getPort());
                 if(srvFd < 0){
-                    log(LOG_ERR, __FILE__, __LINE__, "%s", "Create socket fail!");
+                    log(LOG_ERR, __FILE__, __LINE__,"%s", "Conncet to server fail!");
                     continue;
                 }
-                if(connect(srvFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) != 0){
-                    log(LOG_ERR, __FILE__, __LINE__, "Connect to host %s fail!", hostName);
-                    closeFd(m_epollFd, srvFd);
-                    continue;
-                }
-                server->increaseBusyRatio(); 
+
+                server->increaseBusyRatio();
                 addReadFd(m_epollFd, cltFd);
                 addReadFd(m_epollFd, srvFd);
                 m_cltToSrv[cltFd] = srvFd;
                 m_srvToClt[srvFd] = cltFd;
                 m_srvFdToSrv[srvFd] = server;
             }else if(m_cltToSrv.count(sockFd) > 0  && events[i].events & EPOLLIN){ //This is a client socket
-                int srvFd = m_cltToSrv[sockFd];
-                int bytesRead = recv(sockFd, BUFF, BUFF_SIZE, 0); //receive from client
-                if(bytesRead == -1){
-                    if(errno == EAGAIN || errno == EWOULDBLOCK){
-                        continue;
-                    }else{
-                        log(LOG_ERR, __FILE__, __LINE__, "Receive from client met error: %s", strerror(errno));
-                        freeConn(sockFd, srvFd);
-                        continue;
-                    }
-                }
-                if(bytesRead == 0){
-                    freeConn(sockFd, srvFd);
-                    continue;
-                }
-                if(send(srvFd, BUFF, bytesRead, 0) < 0){  //send to server
-                    freeConn(sockFd, srvFd);
-                    continue;
-                }
-            }else{
-                int cltFd = m_srvToClt[sockFd];
-                int bytesRead = recv(sockFd, BUFF, BUFF_SIZE, 0); //receive from client
-                if(bytesRead == -1){
-                    if(errno == EAGAIN && errno == EWOULDBLOCK){
-                        continue;
-                    }else{
-                        log(LOG_ERR, __FILE__, __LINE__, "Receive from server met error: %s", strerror(errno));
-                        freeConn(cltFd, sockFd);
-                        continue;
-                    }
-                }                                                                                                                               if(bytesRead == 0){
-                    freeConn(cltFd, sockFd);
-                    continue;
-                }
-                if(send(cltFd, BUFF, bytesRead, 0) < 0){  //send to client
-                    freeConn(cltFd, sockFd);
-                    continue;
-                }
+                sendToServer(sockFd);
+            }else if(m_srvToClt.count(sockFd) > 0  && events[i].events & EPOLLIN){
+                sendToClient(sockFd);
             }
+        }       
+    }
+}
+
+void LoadBalance::sendToServer(int sockFd){
+    int srvFd = m_cltToSrv[sockFd];
+    int bytesRead = recv(sockFd, BUFF, BUFF_SIZE, 0); //receive from client
+    
+    if(bytesRead == -1){
+        if(errno == EAGAIN || errno == EWOULDBLOCK){
+            return;
         }
+        else{
+            log(LOG_ERR, __FILE__, __LINE__, "Receive from client met error: %s", strerror(errno));
+            freeConn(sockFd, srvFd);
+            return;
+        }
+    }
         
+    if(bytesRead == 0){
+        freeConn(sockFd, srvFd);
+        return;
+    }
+        
+    if(send(srvFd, BUFF, bytesRead, 0) < 0){  //send to server
+        freeConn(sockFd, srvFd);
+        return;
+    }
+}
+
+void LoadBalance::sendToClient(int sockFd){
+    int cltFd = m_srvToClt[sockFd];
+    int bytesRead = recv(sockFd, BUFF, BUFF_SIZE, 0); //receive from server
+    
+    if(bytesRead == -1){
+        if(errno == EAGAIN || errno == EWOULDBLOCK){
+            return;
+        }
+        else{
+            log(LOG_ERR, __FILE__, __LINE__, "Receive from server met error: %s", strerror(errno));
+            freeConn(cltFd, sockFd);
+            return;
+        }
+    }
+        
+    if(bytesRead == 0){
+        freeConn(cltFd, sockFd);
+        return;
+    }
+        
+    if(send(cltFd, BUFF, bytesRead, 0) < 0){  //send to server
+        freeConn(cltFd, sockFd);
+        return;
     }
 }
 

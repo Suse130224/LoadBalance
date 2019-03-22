@@ -38,14 +38,14 @@ int readConfig(){ //读配置文件
         getline(in, line);
         if(line.compare(0, 1, "#") == 0){  //忽略注释
             continue;
-        }else if(line.compare(0, 6, "listen") == 0){
+        }else if(line.compare(0, 6, "listen") == 0){  //如果以listen开头，读取负载均衡器信息
             size_t pos1 = line.find(' ', 7);
             size_t pos2 = line.find(' ', pos1 + 1);
             g_localHostName = line.substr(7, pos1 - 7);
             g_localPort = std::stoi(line.substr(pos1 + 1, pos2 - pos1 - 1));
             g_localMaxConn = std::stoi(line.substr(pos2 + 1));
 
-        }else if(line.compare(0, 6, "server") == 0){
+        }else if(line.compare(0, 6, "server") == 0){ //如果以server开头，读取后端服务器信息
             size_t pos1 = line.find(' ', 7);
             size_t pos2 = line.find(' ', pos1 + 1);
             std::string hostName = line.substr(7, pos1 - 7);
@@ -67,7 +67,7 @@ int readConfig(){ //读配置文件
     return 0;
 }
 
-void signalHandler(int sigNum){
+void signalHandler(int sigNum){  //如果程序终止或中断，删除new的server指针，以防内存泄漏
     for(auto server : g_logicalSrvs){
         delete server;
     }
@@ -75,15 +75,16 @@ void signalHandler(int sigNum){
 }
 
 int main(){
-    signal(SIGINT, signalHandler);
+    signal(SIGINT, signalHandler); //注册信号
     signal(SIGTERM, signalHandler);
 
     if(readConfig() == -1){
         log(LOG_ERR, __FILE__, __LINE__, "%s", "open config file fail");
         return 1;
     }
-        
-    int listenFd = socket(PF_INET, SOCK_STREAM, 0); //start listening
+    
+    //开启本地监听    
+    int listenFd = socket(PF_INET, SOCK_STREAM, 0); 
     assert(listenFd >= 0);
     struct sockaddr_in address;
     bzero(&address, sizeof(address));
@@ -103,14 +104,17 @@ int main(){
         log(LOG_ERR, __FILE__, __LINE__, "%s", "bind address error!");
         return -1;
     }
-    
-    AlgorithmFactory factory(g_algorithm, g_logicalSrvs);
-    Base* algorithm = factory.create();
+
+
+    AlgorithmFactory factory(g_algorithm, g_logicalSrvs); //初始化算法工厂
+    Base* algorithm = factory.create(); //通过工厂获取对应的算法对象
     assert(algorithm != nullptr);
+
+
     LoadBalance loadBalance(listenFd, g_logicalSrvs, algorithm, g_localMaxConn);
     HealthCheck healthCheck(g_logicalSrvs, g_checkInter, g_checkRise, g_checkFall);
-    std::thread t1(&LoadBalance::balance, loadBalance); //open a thread for load balance
-    std::thread t2(&HealthCheck::check, healthCheck);  //open a thread for health check
+    std::thread t1(&LoadBalance::balance, loadBalance); //开启一个线程完成负载均衡功能
+    std::thread t2(&HealthCheck::check, healthCheck);  //开启一个线程完成健康检查功能
     t1.join();
     t2.join();
     
