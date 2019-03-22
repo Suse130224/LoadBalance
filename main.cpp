@@ -24,6 +24,7 @@ static int g_localPort;
 static int g_checkInter; //健康检查时间间隔
 static int g_checkRise;  //服务器恢复服务需要的连接成功次数
 static int g_checkFall;  //服务器停止服务需要的连接失败次数
+static std::string g_algorithm;  //采取的负载均衡算法
 
 
 int readConfig(){ //读配置文件
@@ -54,6 +55,8 @@ int readConfig(){ //读配置文件
             g_checkRise = std::stoi(line.substr(5));
         }else if(line.compare(0, 4, "fall") == 0){
             g_checkFall = std::stoi(line.substr(5));
+        }else if(line.compare(0, 9, "algorithm") == 0){
+            g_algorithm = line.substr(10);
         }
     }
     in.close();
@@ -97,7 +100,10 @@ int main(){
         return -1;
     }
     
-    LoadBalance loadBalance(listenFd, g_logicalSrvs);
+    AlgorithmFactory factory(g_algorithm, g_logicalSrvs);
+    Base* algorithm = factory.create();
+    assert(algorithm != nullptr);
+    LoadBalance loadBalance(listenFd, g_logicalSrvs, algorithm);
     HealthCheck healthCheck(g_logicalSrvs, g_checkInter, g_checkRise, g_checkFall);
     std::thread t1(&LoadBalance::balance, loadBalance); //open a thread for load balance
     std::thread t2(&HealthCheck::check, healthCheck);  //open a thread for health check

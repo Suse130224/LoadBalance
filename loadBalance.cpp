@@ -8,20 +8,20 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <signal.h>
-#include <climits>
 #include <vector>
 #include <thread>
 
 #include "loadBalance.h"
 #include "log.h"
 #include "util.h"
+#include "algorithmFactory.h"
 
 static const int MAX_EVENT_NUMBER = 10000;
 static const int EPOLL_WAIT_TIME = 5000;
 static const int BUFF_SIZE = 1024;
 static char BUFF[1024];
 
-LoadBalance::LoadBalance(int fd, std::vector<Host*> servers) : m_listenFd(fd), m_servers(servers) {
+LoadBalance::LoadBalance(int fd, std::vector<Host*> servers, Base* algorithm) : m_listenFd(fd), m_servers(servers), m_algorithm(algorithm) {
     m_epollFd = epoll_create(1024);
     assert(m_epollFd != -1);
     addReadFd(m_epollFd, m_listenFd);
@@ -57,10 +57,9 @@ void LoadBalance::balance(){
                     continue;
                 }
 
-                Host* server = getMostFreeHost(); //select most free host for client
-                if(server == nullptr){
-                    log(LOG_ERR, __FILE__, __LINE__, "%s", "No free host!");
-                    closeFd(m_epollFd, cltFd);
+                Host* server = m_algorithm->selectServer(); 
+                if(server->getBusyRatio() >= server->getMaxConn()){
+                    log(LOG_ERR, __FILE__, __LINE__, "server %s has reached the maximum number of connections!", (char*)server->getHostName().c_str());
                     continue;
                 }
          
@@ -137,17 +136,5 @@ void LoadBalance::freeConn(int cltFd, int srvFd){
     m_cltToSrv.erase(cltFd);
     m_srvToClt.erase(srvFd);
     m_srvFdToSrv[srvFd]->decreaseBusyRatio();
-}
-
-Host* LoadBalance::getMostFreeHost(){
-    int minBusyRatio = INT_MAX;
-    Host* res = nullptr;
-    for(auto server : m_servers){
-        if(server->getBusyRatio() < minBusyRatio && server->getBusyRatio() < server->getMaxConn()){
-            res = server;
-            minBusyRatio = server->getBusyRatio();
-        }
-    }
-    return res;
 }
 

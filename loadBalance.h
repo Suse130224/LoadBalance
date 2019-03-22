@@ -5,6 +5,7 @@
 #include <map>
 
 #include "host.h"
+#include "algorithmFactory.h"
 
 class LoadBalance{
 private:
@@ -14,11 +15,11 @@ private:
     std::map<int, int> m_cltToSrv;
     std::map<int, int> m_srvToClt;
     std::map<int, Host*> m_srvFdToSrv;
+    Base* m_algorithm;
     void freeConn(int cltFd, int srvFd);
 public:
-    LoadBalance(int fd, std::vector<Host*> servers);
+    LoadBalance(int fd, std::vector<Host*> servers, Base* algorithm);
     ~LoadBalance();
-    Host* getMostFreeHost();
     void balance();
     void check();
 };

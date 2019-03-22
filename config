@@ -1,7 +1,14 @@
+#本地监听ip和端口
 listen 127.0.0.1 8000
+#健康检查间隔
 inter 2
+#服务器恢复服务需要的连接成功数
 rise 2
+#服务器判断掉线的连接失败数
 fall 3
+#采取的负载均衡算法，可选roundRobin，random，leastConnection
+algorithm leastConnection
+#后端服务器列表，以server开头
 server localhost 8090 10000
 server 127.0.0.1 8091 10000
 
