@@ -11,6 +11,8 @@ class LoadBalance{
 private:
     int m_listenFd;
     int m_epollFd;
+    int m_maxConn;
+    int m_curConn;
     std::vector<Host*> m_servers;
     std::map<int, int> m_cltToSrv;
     std::map<int, int> m_srvToClt;
@@ -18,7 +20,7 @@ private:
     Base* m_algorithm;
     void freeConn(int cltFd, int srvFd);
 public:
-    LoadBalance(int fd, std::vector<Host*> servers, Base* algorithm);
+    LoadBalance(int fd, std::vector<Host*> servers, Base* algorithm, int maxConn);
     ~LoadBalance();
     void balance();
     void check();

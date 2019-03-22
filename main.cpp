@@ -24,6 +24,7 @@ static int g_localPort;
 static int g_checkInter; //健康检查时间间隔
 static int g_checkRise;  //服务器恢复服务需要的连接成功次数
 static int g_checkFall;  //服务器停止服务需要的连接失败次数
+static int g_localMaxConn;
 static std::string g_algorithm;  //采取的负载均衡算法
 
 
@@ -38,9 +39,12 @@ int readConfig(){ //读配置文件
         if(line.compare(0, 1, "#") == 0){  //忽略注释
             continue;
         }else if(line.compare(0, 6, "listen") == 0){
-            size_t pos = line.find(' ', 7);
-            g_localHostName = line.substr(7, pos - 7);
-            g_localPort = std::stoi(line.substr(pos + 1));
+            size_t pos1 = line.find(' ', 7);
+            size_t pos2 = line.find(' ', pos1 + 1);
+            g_localHostName = line.substr(7, pos1 - 7);
+            g_localPort = std::stoi(line.substr(pos1 + 1, pos2 - pos1 - 1));
+            g_localMaxConn = std::stoi(line.substr(pos2 + 1));
+
         }else if(line.compare(0, 6, "server") == 0){
             size_t pos1 = line.find(' ', 7);
             size_t pos2 = line.find(' ', pos1 + 1);
@@ -103,7 +107,7 @@ int main(){
     AlgorithmFactory factory(g_algorithm, g_logicalSrvs);
     Base* algorithm = factory.create();
     assert(algorithm != nullptr);
-    LoadBalance loadBalance(listenFd, g_logicalSrvs, algorithm);
+    LoadBalance loadBalance(listenFd, g_logicalSrvs, algorithm, g_localMaxConn);
     HealthCheck healthCheck(g_logicalSrvs, g_checkInter, g_checkRise, g_checkFall);
     std::thread t1(&LoadBalance::balance, loadBalance); //open a thread for load balance
     std::thread t2(&HealthCheck::check, healthCheck);  //open a thread for health check

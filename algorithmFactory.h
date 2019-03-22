@@ -34,7 +34,6 @@ public:
 	}
 };
 
-int RoundRobin::pos = 0;
 
 class Random : public Base{
 public:

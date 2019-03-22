@@ -21,7 +21,7 @@ static const int EPOLL_WAIT_TIME = 5000;
 static const int BUFF_SIZE = 1024;
 static char BUFF[1024];
 
-LoadBalance::LoadBalance(int fd, std::vector<Host*> servers, Base* algorithm) : m_listenFd(fd), m_servers(servers), m_algorithm(algorithm) {
+LoadBalance::LoadBalance(int fd, std::vector<Host*> servers, Base* algorithm, int maxConn) : m_listenFd(fd), m_servers(servers), m_algorithm(algorithm), m_maxConn(maxConn), m_curConn(0) {
     m_epollFd = epoll_create(1024);
     assert(m_epollFd != -1);
     addReadFd(m_epollFd, m_listenFd);
@@ -38,7 +38,6 @@ LoadBalance::~LoadBalance(){
 void LoadBalance::balance(){
     epoll_event events[MAX_EVENT_NUMBER];
     int number = 0;
-
     while(true){
         number = epoll_wait(m_epollFd, events, MAX_EVENT_NUMBER, EPOLL_WAIT_TIME);
         if((number < 0) &&(errno != EINTR)){
@@ -49,6 +48,7 @@ void LoadBalance::balance(){
         for(int i = 0; i < number; ++i){
             int sockFd = events[i].data.fd;
             if(sockFd == m_listenFd && events[i].events & EPOLLIN){ //get a new client request
+                m_curConn++;
                 struct sockaddr_in clientAddress;
                 socklen_t clientAddrlength = sizeof(clientAddress);
                 int cltFd = accept(m_listenFd, (struct sockaddr*)&clientAddress, &clientAddrlength);
@@ -56,7 +56,11 @@ void LoadBalance::balance(){
                     log(LOG_ERR, __FILE__, __LINE__, "Accept client request fail, errno: %s", strerror(errno));
                     continue;
                 }
-
+                if(m_curConn > m_maxConn){ //到达最大连接数则拒绝客户端请求
+                    log(LOG_DEBUG, __FILE__, __LINE__, "%s", "Max connection reached! The request from client refused!");
+                    close(cltFd);
+                    continue;
+                }
                 Host* server = m_algorithm->selectServer(); 
                 if(server->getBusyRatio() >= server->getMaxConn()){
                     log(LOG_ERR, __FILE__, __LINE__, "server %s has reached the maximum number of connections!", (char*)server->getHostName().c_str());
@@ -136,5 +140,6 @@ void LoadBalance::freeConn(int cltFd, int srvFd){
     m_cltToSrv.erase(cltFd);
     m_srvToClt.erase(srvFd);
     m_srvFdToSrv[srvFd]->decreaseBusyRatio();
+    m_curConn--;
 }
 
