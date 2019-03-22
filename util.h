@@ -1,28 +1,22 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <string.h>
 
-int setnonblocking(int fd){
-    int old_option = fcntl(fd, F_GETFL);
-    int new_option = old_option | O_NONBLOCK;
-    fcntl(fd, F_SETFL, new_option);
-    return old_option;
-}
+#include "log.h"
 
-void addReadFd(int epollFd, int fd){
-    epoll_event event;
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET;
-    epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &event);
-    setnonblocking(fd);
-}
+int setnonblocking(int fd); //将socket设置为非阻塞模式
 
-void closeFd(int epollFd, int fd){
-    epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, 0);
-    close(fd);
-}
+void addReadFd(int epollFd, int fd); //将fd添加到epollFd的监听列表
+
+void closeFd(int epollFd, int fd); //将fd从epollFd的监听列表移除，并关闭fd
+
+int connectToServer(char* hostName, int port); //创建socket并连接到服务器
 
 #endif

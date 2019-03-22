@@ -12,72 +12,39 @@ const std::string ROUND_ROBIN = "roundRobin";
 const std::string RANDOM = "random";
 const std::string LEAST_CONNECTION = "leastConnection";
 
-class Base{
+class Base{ //虚基类，提供接口
 public:
-	Base(std::vector<Host* > servers) : m_servers(servers) {}
+	Base(std::vector<Host* > servers);
 	virtual Host* selectServer() = 0;
 protected:
 	std::vector<Host* > m_servers;
 };
 
-class RoundRobin : public Base{
+class RoundRobin : public Base{ //轮询法
 public:
+	RoundRobin(std::vector<Host* > servers);
+	Host* selectServer();
+private:
 	static int pos;
-	RoundRobin(std::vector<Host* > servers) : Base(servers) {}
-	Host* selectServer(){
-		if(pos > m_servers.size()){
-			pos = 0;
-		}
-		Host* server = m_servers[pos];
-		pos++;
-		return server;
-	}
 };
 
 
-class Random : public Base{
+class Random : public Base{ //随机法
 public:
-	Random(std::vector<Host* > servers) : Base(servers) {}
-	Host* selectServer(){
-		int randomPos = rand() % m_servers.size();
-		return m_servers[randomPos];
-	}
+	Random(std::vector<Host* > servers);
+	Host* selectServer();
 };
 
-class LeastConnection : public Base{
+class LeastConnection : public Base{ //最小连接数法
 public:
-	LeastConnection(std::vector<Host* > servers) : Base(servers) {}
-	Host* selectServer(){
-		int minBusyRatio = INT_MAX;
-    	Host* res = nullptr;
-    	for(auto server : m_servers){
-        	if(server->getBusyRatio() < minBusyRatio){
-            	res = server;
-            	minBusyRatio = server->getBusyRatio();
-        	}
-    	}
-    	return res;
-	}
+	LeastConnection(std::vector<Host* > servers);
+	Host* selectServer();
 };
 
-class AlgorithmFactory{
+class AlgorithmFactory{ //算法工厂，根据配置创建对应的对象
 public:
-	AlgorithmFactory(std::string name, std::vector<Host* > servers) : m_name(name), m_servers(servers) {}
-	Base* create(){
-		if(m_name == ROUND_ROBIN){
-			return new RoundRobin(m_servers);
-		}
-		else if(m_name == RANDOM){
-			return new Random(m_servers);
-		}
-		else if(m_name == LEAST_CONNECTION){
-			return new LeastConnection(m_servers);
-		}
-		else{
-			log( LOG_ERR, __FILE__, __LINE__, "Currenly only support %s, %s, and %s!", ROUND_ROBIN, RANDOM, LEAST_CONNECTION );
-			return nullptr;
-		}
-	}
+	AlgorithmFactory(std::string name, std::vector<Host* > servers);
+	Base* create();
 private:
 	std::string m_name;
 	std::vector<Host* > m_servers;
